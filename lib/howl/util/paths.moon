@@ -78,7 +78,7 @@ get_dir_and_leftover = (path) ->
 
   return File(glib.get_current_dir!).root_dir, path
 
-file_matcher = (files, directory, allow_new=false) ->
+file_list = (files, directory) ->
   children = {}
   hidden_by_config = {}
 
@@ -112,6 +112,10 @@ file_matcher = (files, directory, allow_new=false) ->
     return false if d2 and not d1
     f1.name < f2.name
 
+  return children, hidden_by_config
+
+file_matcher = (files, directory, allow_new=false) ->
+  children, hidden_by_config = file_list files, directory
   matcher = Matcher children
 
   return (text) ->
@@ -175,6 +179,7 @@ subtree_paths_matcher = (paths, directory, opts = {}) ->
 
 {
   :file_matcher,
+  :file_list,
   :get_cwd,
   :get_dir_and_leftover,
   :subtree_paths_matcher,

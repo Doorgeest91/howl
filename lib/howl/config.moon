@@ -305,6 +305,7 @@ config = {
   :replace
   :merge
   :delete
+  :validate
 }
 
 return setmetatable config, {
