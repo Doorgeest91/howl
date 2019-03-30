@@ -22,6 +22,7 @@ describe 'file_selection', ->
     app.window\realize!
     app.editor = app\new_editor!
     tmpdir = File.tmpdir!
+    howl.config.file_icons = true
 
   after_each ->
     tmpdir\rm_r!
@@ -63,7 +64,7 @@ describe 'file_selection', ->
       within_command_line interact.select_file, (command_line) ->
         command_line\write tostring(tmpdir) .. '/'
         table.insert prompts, tostring command_line.prompt
-        command_line\write tostring(tmpdir) .. '../'
+        command_line\write '../'
         table.insert prompts, tostring command_line.prompt
       assert.same {tostring(tmpdir) .. '/', tostring(tmpdir.parent) .. '/'}, prompts
 

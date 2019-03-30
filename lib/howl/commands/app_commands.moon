@@ -122,11 +122,7 @@ command.register
       prompt: opts.prompt
       text: opts.text
       help: opts.help
-  handler: (variable_assignment) ->
-    target = variable_assignment.target
-    target[variable_assignment.var] = variable_assignment.value
-
-    _G.log.info ('"%s" is now set to "%s" for %s')\format variable_assignment.var, variable_assignment.value, variable_assignment.scope_name
+  handler: (result) -> result.config_value\commit!
   get_input_text: (result) -> result.text
 
 command.register

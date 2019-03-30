@@ -17,10 +17,10 @@ describe 'ExplorerView', ->
       preview: spy.new ->
       cancel_preview: spy.new ->
     }
+    explorer = display_items: -> {}
     command_line =
       add_widget: spy.new (name, w) => list_widget = w if name == 'explore_list'
       notification: NotificationWidget!
-    explorer = display_items: -> {}
 
   context 'on initialization', ->
     it 'calls add_widget on the passed command line, adding a list widget', ->
@@ -49,6 +49,7 @@ describe 'ExplorerView', ->
   context 'displaying the items list', ->
 
     rebuild = (items, opts) ->
+      -- draw an explorer returning (items, opts) from display_items()
       explorer.display_items = -> items, opts
       explorer_view = ExplorerView path: {explorer}
       explorer_view\init command_line, max_height: 100
@@ -110,15 +111,19 @@ describe 'ExplorerView', ->
         rebuild items
         assert.same 'hello', previewed_text
 
+        -- should match the 'two' item and preview the buffer
         explorer_view\on_text_changed 'two'
         assert.same 'buf-text', previewed_text
 
+        -- should match the 'three' item and preview the chunk
         explorer_view\on_text_changed 'three'
         assert.same 'buf-text', previewed_text
 
+        -- clearing the text should go back to the first item
         explorer_view\on_text_changed ''
         assert.same 'hello', previewed_text
 
+        -- also selects 'two' and previews the buffer
         keypress_binding_for 'cursor-down'
         assert.same 'buf-text', 'buf-text'
 
@@ -143,7 +148,6 @@ describe 'ExplorerView', ->
       explorer.display_items = spy.new -> {'one', 'two', 'three'}
       explorer_view = ExplorerView path: {explorer}
       explorer_view\init command_line, max_height: 100
-      explorer_view\on_text_changed ''
 
     it 'displays filtered items when text is changed', ->
       explorer_view\on_text_changed 'on'
@@ -185,7 +189,6 @@ describe 'ExplorerView', ->
       it 'when selected item is explorable, it enters the new item, updating list', ->
         explorer_view\on_text_changed 'two'
         keypress 'enter'
-        explorer_view\on_text_changed ''
 
         assert.spy(command_line.finish).was_not_called!
         assert.same {'a', 'b', 'c'}, list_widget_items!
@@ -194,6 +197,9 @@ describe 'ExplorerView', ->
         it 'goes back up one level', ->
           explorer_view\on_text_changed 'two'
           keypress 'enter'
+          assert.same command_line.text, ''
+          explorer_view\on_text_changed ''
+
           assert.same {'a', 'b', 'c'}, list_widget_items!
           keypress 'backspace'
           assert.same {'one'}, list_widget_items![1]
@@ -248,6 +254,19 @@ describe 'ExplorerView', ->
         keypress 'backspace'
         assert.same {'one', 'two', 'three'}, list_widget_items!
 
+      it 'sets any remaining_text returned by parse as text for the new level', ->
+        parse = spy.new (_, text) ->
+          return unless text == 'two'
+          {display_items: -> {'aa', 'bb', 'ca'}}, remaining_text: 'a'
+
+        explorer_view\on_text_changed 'two'
+        -- a real command line will call on_text_changed when text is set on it
+        -- here we verify that text is correct and simulate the call
+        assert.same command_line.text, 'a'
+        explorer_view\on_text_changed 'a'
+        -- only matches items with 'a'
+        assert.same {'aa', 'ca'}, list_widget_items!
+
     context 'when parse returns option {absolute: true}', ->
       it 'jumps to the returned path of explorer objects, replacing current state', ->
         parse = spy.new (_, text) ->
@@ -258,23 +277,73 @@ describe 'ExplorerView', ->
         keypress 'backspace'
         assert.same {'outer'}, list_widget_items!
 
-  context 'when item provides get_value method instead of display_items', ->
+  context 'when item provides get_value method', ->
+    local finish_result, previewed_text
     before_each ->
-      command_line.finish = spy.new ->
+      finish_result = '<finish-not-called>'
+      command_line.finish = spy.new (_, result) -> finish_result = result
+
+      previewed_text = '<no-preview-set>'
+      app.editor.preview = spy.new (e, buf) -> previewed_text = buf.text
+
       explorer.get_value = -> '100'
       explorer.set_value = spy.new ->
       explorer.display_items = nil
-      explorer_view = ExplorerView path: {explorer}
-      explorer_view\init command_line
-      explorer_view\on_text_changed ''
+      explorer.preview = (_, text) -> {text: 'preview-text:' .. text}
 
-    it 'sets the command_line text to the value returned by get_value', ->
-      assert.same '100', command_line.text
+    context 'when get_options is nil', ->
+      before_each ->
+        explorer.get_options = ->
+        explorer_view = ExplorerView path: {explorer}
+        explorer_view\init command_line
+        explorer_view\on_text_changed ''
 
-    it 'does not display the list widget', ->
-      assert.is_falsy list_widget.showing
+      it 'sets the command_line text to the value returned by get_value', ->
+        assert.same '100', command_line.text
 
-    it 'calls set_value when text is changed, passing new text', ->
-      explorer_view\on_text_changed 'new-value'
-      assert.spy(explorer.set_value).was_called_with explorer, 'new-value'
+      it 'does not display the list widget', ->
+        assert.is_falsy list_widget.showing
 
+      it 'calls set_value when text is changed, passing new text', ->
+        explorer_view\on_text_changed 'new-value'
+        assert.spy(explorer.set_value).was_called_with explorer, 'new-value'
+
+      it 'displays the preview for the item as text changes`', ->
+        assert.same previewed_text, 'preview-text:'
+        explorer_view\on_text_changed 'hello'
+        assert.same previewed_text, 'preview-text:hello'
+
+    context 'when get_options is a list of options', ->
+      before_each ->
+        explorer.get_options = -> {{'opt-a', value:'a'}, {'opt-b', value:'b'}}
+        explorer.get_value = -> 'b'
+        explorer.set_value = spy.new ->
+        explorer.display_items = nil
+
+        explorer_view = ExplorerView path: {explorer}
+        explorer_view\init command_line
+        explorer_view\on_text_changed ''
+
+      it 'displays the list of options', ->
+        assert.is_true list_widget.showing
+        assert.same {'opt-a', 'opt-b'}, [item[1] for item in *list_widget_items!]
+
+      it 'shows the current value as seleted', ->
+        assert.same {'opt-b', value:'b'}, list_widget.list.selection
+
+      it 'lets you filter options by typing', ->
+        explorer_view\on_text_changed 'a'
+        assert.same {'opt-a'}, [item[1] for item in *list_widget_items!]
+
+      it 'selecting an option finishes with the selection set with the new value', ->
+        keypress_binding_for 'cursor-up'  -- default is 'b', this selects 'a'
+        keypress 'enter'
+        assert.spy(command_line.finish).was_called 1
+        assert.equal explorer, finish_result
+        assert.spy(explorer.set_value).was_called 1
+        assert.spy(explorer.set_value).was_called_with explorer, 'a'
+
+      it 'displays the preview for the item as selection changes`', ->
+        assert.same 'preview-text:b', previewed_text
+        keypress_binding_for 'cursor-up'
+        assert.same 'preview-text:a', previewed_text

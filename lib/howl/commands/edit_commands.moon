@@ -69,7 +69,7 @@ command.register
       prompt: opts.prompt
       text: if not opts.text or opts.text.is_empty then '/' else opts.text
       help: opts.help
-      title: "Replace text in #{buffer.title}"
+      title: "Matches in #{buffer.title}"
       editor: app.editor
       :buffer
       find: (text, query, start) -> text\ufind query, start, true
@@ -99,7 +99,7 @@ command.register
       prompt: opts.prompt
       text: if not opts.text or opts.text.is_empty then '/' else opts.text
       help: opts.help
-      title: "Replace regex in #{buffer.title}"
+      title: "Regex matches in #{buffer.title}"
       editor: app.editor
       :buffer
       parse_query: (query) ->

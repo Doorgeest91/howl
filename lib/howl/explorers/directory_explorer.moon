@@ -9,6 +9,13 @@ append = table.insert
 separator = howl.io.File.separator
 current_dir_specifier = ".#{separator}"
 
+howl.config.define
+  name: 'file_icons'
+  description: 'Whether file and directory icons are displayed'
+  scope: 'global'
+  type_of: 'boolean'
+  default: true
+
 style.define_default 'directory', 'key'
 style.define_default 'filename', 'string'
 icon.define_default 'directory', 'font-awesome-folder'
@@ -265,6 +272,9 @@ class DirectoryExplorer
         when File.separator then @file.path .. text  -- dont insert '/' for root
         else @file.path .. File.separator .. text
       matched, remaining_text = DirectoryExplorer.for_path(absolute_path, @_copy_opts!)
+      -- dont just return the same diretory we're already in
+      explorer = matched[#matched]
+      return if explorer and explorer.file == @file
 
     if remaining_text.is_blank and not text\ends_with File.separator
       -- don't automatically enter directories unless text ends in separator

@@ -7,13 +7,6 @@ glib = require 'ljglibs.glib'
 append = table.insert
 separator = File.separator
 
-howl.config.define
-  name: 'file_icons'
-  description: 'Whether file and directory icons are displayed'
-  scope: 'global'
-  type_of: 'boolean'
-  default: true
-
 get_cwd = ->
   buffer = howl.app.editor and howl.app.editor.buffer
   directory = buffer and (buffer.file and buffer.file.parent or buffer.directory)

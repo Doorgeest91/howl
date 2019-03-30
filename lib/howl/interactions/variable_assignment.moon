@@ -10,12 +10,8 @@ howl.interact.register
       path: {howl.explorers.ConfigExplorer howl.app.editor.buffer}
       text: opts.text
       help: opts.help
-      transform_result: (result) ->
-        target = result.target
+      transform_result: (config_value) ->
         {
-          var: target.def.name
-          target: target.config_obj
-          value: result.value
-          scope_name: target.scope_layer_name
-          text: target\display_path! .. target\to_s result.value
+          :config_value
+          text: config_value\display_path! .. config_value\new_value_str!
         }
